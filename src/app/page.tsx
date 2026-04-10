@@ -44,8 +44,15 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-border px-6 py-8 text-center text-sm text-text-muted">
-        <p>FANPASS - 手数料15%でクリエイターの収益を最大化</p>
+      <footer className="border-t border-border px-6 py-8">
+        <div className="max-w-2xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-sm text-text-muted">FANPASS - 手数料15%でクリエイターの収益を最大化</p>
+          <div className="flex items-center gap-4 text-xs text-text-muted">
+            <Link href="/terms" className="hover:text-text-primary">利用規約</Link>
+            <Link href="/privacy" className="hover:text-text-primary">プライバシーポリシー</Link>
+            <Link href="/tokusho" className="hover:text-text-primary">特定商取引法</Link>
+          </div>
+        </div>
       </footer>
     </div>
   );

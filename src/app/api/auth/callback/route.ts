@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getOrCreateUser } from "@/db/queries/users";
 
-// 許可されたリダイレクト先（オープンリダイレクト防止）
 const ALLOWED_REDIRECTS = [
   "/home", "/subscriptions", "/dm", "/notifications", "/settings",
   "/creator/dashboard", "/creator/posts", "/creator/tiers",
   "/creator/subscribers", "/creator/revenue", "/creator/settings",
+  "/creator/register",
 ];
 
 function sanitizeRedirect(redirect: string | null): string {
   if (!redirect) return "/home";
-  // 相対パスのみ許可、外部URLをブロック
   if (!redirect.startsWith("/") || redirect.startsWith("//")) return "/home";
-  // 許可リストにあるか、そのプレフィックスで始まるか
   const isAllowed = ALLOWED_REDIRECTS.some((path) => redirect.startsWith(path));
   return isAllowed ? redirect : "/home";
 }
@@ -24,7 +23,20 @@ export async function GET(request: Request) {
 
   if (code) {
     const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+    const { data } = await supabase.auth.exchangeCodeForSession(code);
+
+    // #2: サインアップ/ログイン時にusersテーブルに自動INSERT
+    if (data?.user) {
+      try {
+        await getOrCreateUser({
+          id: data.user.id,
+          email: data.user.email ?? "",
+          user_metadata: data.user.user_metadata,
+        });
+      } catch (e) {
+        console.error("Failed to create user record:", e);
+      }
+    }
   }
 
   return NextResponse.redirect(`${origin}${redirect}`);
