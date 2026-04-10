@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { CookieConsent } from "@/components/cookie-consent";
 
 export const metadata: Metadata = {
   title: {
@@ -33,6 +34,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col" style={{ fontFamily: "'Noto Sans JP', sans-serif" }}>
         {children}
+        <CookieConsent />
       </body>
     </html>
   );

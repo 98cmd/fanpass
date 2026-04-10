@@ -74,6 +74,12 @@ export default function LoginPage() {
             required
           />
 
+          <div className="text-right">
+            <Link href="/reset-password" className="text-xs text-primary hover:underline">
+              パスワードを忘れた場合
+            </Link>
+          </div>
+
           {error && (
             <p className="text-sm text-error bg-error/10 rounded-lg px-3 py-2">{error}</p>
           )}

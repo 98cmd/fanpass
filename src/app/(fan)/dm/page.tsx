@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth/session";
 import { getUserConversations } from "@/db/queries/dm";
@@ -53,7 +54,8 @@ export default async function DmPage() {
       ) : (
         <div className="space-y-2">
           {enriched.map((conv) => (
-            <Card key={conv.id} className="cursor-pointer hover:border-primary/20 transition-colors">
+            <Link key={conv.id} href={`/dm/${conv.id}`}>
+            <Card className="cursor-pointer hover:border-primary/20 transition-colors">
               <CardContent className="p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary shrink-0">
                   {conv.name.charAt(0)}
@@ -68,6 +70,7 @@ export default async function DmPage() {
                 {conv.unread && <div className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" />}
               </CardContent>
             </Card>
+            </Link>
           ))}
         </div>
       )}
