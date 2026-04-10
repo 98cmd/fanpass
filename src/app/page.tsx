@@ -39,17 +39,20 @@ export default function LandingPage() {
 
       {/* ヒーロー */}
       <section className="relative pt-32 pb-20 lg:pt-44 lg:pb-32 min-h-[85vh] flex items-center overflow-hidden">
-        {/* 背景画像 */}
-        <div className="absolute inset-0 z-0">
+        {/* 背景画像（右半分に配置） */}
+        <div className="absolute right-0 top-0 w-full lg:w-[55%] h-full z-0 overflow-hidden">
           <img
             src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?auto=format&fit=crop&w=2000&q=80"
             alt=""
-            className="w-full h-full object-cover object-center opacity-[0.07]"
+            className="w-full h-full object-cover object-center"
+            style={{ filter: "grayscale(100%) contrast(1.1)", opacity: 0.15 }}
           />
-          {/* 左からのフェード（テキスト可読性確保） */}
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/70" />
-          {/* 下からのフェード（次セクションとの繋がり） */}
-          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+          {/* 左からのフェード（テキストとの境界） */}
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent" />
+          {/* 下からのフェード */}
+          <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-background to-transparent" />
+          {/* 上からのフェード */}
+          <div className="absolute top-0 left-0 right-0 h-24 bg-gradient-to-b from-background to-transparent" />
         </div>
 
         <div className="max-w-[1200px] mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10">
