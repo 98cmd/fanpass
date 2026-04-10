@@ -49,4 +49,75 @@
 body {
   background: var(--color-background);
   color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
 }
+
+/* ティアカード shimmer エフェクト */
+@keyframes shimmer {
+  0% { transform: translateX(-150%) skewX(-20deg); }
+  100% { transform: translateX(250%) skewX(-20deg); }
+}
+
+.card-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.35),
+    rgba(255, 255, 255, 0)
+  );
+  transform: skewX(-20deg);
+  animation: shimmer 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.card-shimmer-dark::after {
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.15),
+    rgba(255, 255, 255, 0)
+  );
+}
+
+.shimmer-delay-1::after { animation-delay: 0.8s; }
+.shimmer-delay-2::after { animation-delay: 1.6s; }
+
+/* チャート描画アニメーション */
+@keyframes draw-line {
+  from { stroke-dashoffset: 1000; }
+  to { stroke-dashoffset: 0; }
+}
+
+.chart-line {
+  stroke-dasharray: 1000;
+  animation: draw-line 1.5s ease-out forwards;
+}
+
+.chart-area {
+  opacity: 0;
+  animation: fade-in-area 1s ease-out 0.5s forwards;
+}
+
+@keyframes fade-in-area {
+  to { opacity: 0.15; }
+}
+
+/* スクロールバー非表示（横スクロール用） */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* テーブル行ホバー */
+.table-row-hover:hover td { background-color: #F5F5F4; }
+td { transition: background-color 0.15s ease; }
