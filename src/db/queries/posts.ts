@@ -1,125 +1,102 @@
 "use server";
 
-import { eq, desc, and, sql } from "drizzle-orm";
-import { getDb } from "@/db";
-import { posts, postLikes, comments, ppvPurchases } from "@/db/schema";
+import { getSupabaseAdmin } from "@/db";
 
 export async function getCreatorPosts(creatorId: string, limit = 20, offset = 0) {
-  const db = getDb();
-  return db
-    .select()
-    .from(posts)
-    .where(eq(posts.creatorId, creatorId))
-    .orderBy(desc(posts.publishedAt))
-    .limit(limit)
-    .offset(offset);
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("posts")
+    .select("*")
+    .eq("creator_id", creatorId)
+    .order("published_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+  return (data ?? []) as any[];
 }
 
 export async function getPostById(postId: string) {
-  const db = getDb();
-  const result = await db
-    .select()
-    .from(posts)
-    .where(eq(posts.id, postId))
-    .limit(1);
-  return result[0] ?? null;
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("posts")
+    .select("*")
+    .eq("id", postId)
+    .single();
+  return data as any;
 }
 
 export async function createPost(data: {
   creatorId: string;
-  type: "text" | "image" | "video" | "audio";
+  type: string;
   title?: string;
   body?: string;
   mediaUrls?: string[];
-  visibility: "public" | "subscribers" | "tier";
+  visibility: string;
   minTierId?: string;
   isPpv?: boolean;
   ppvPrice?: number;
 }) {
-  const db = getDb();
-  return db
-    .insert(posts)
-    .values({
-      ...data,
-      mediaUrls: data.mediaUrls ?? [],
-      publishedAt: new Date(),
+  const sb = getSupabaseAdmin();
+  const { data: post, error } = await sb
+    .from("posts")
+    .insert({
+      creator_id: data.creatorId,
+      type: data.type,
+      title: data.title,
+      body: data.body,
+      media_urls: data.mediaUrls ?? [],
+      visibility: data.visibility,
+      min_tier_id: data.minTierId,
+      is_ppv: data.isPpv ?? false,
+      ppv_price: data.ppvPrice,
+      published_at: new Date().toISOString(),
     })
-    .returning();
-}
+    .select()
+    .single();
 
-export async function updatePost(
-  postId: string,
-  data: Partial<{
-    title: string;
-    body: string;
-    mediaUrls: string[];
-    visibility: "public" | "subscribers" | "tier";
-    minTierId: string;
-    isPpv: boolean;
-    ppvPrice: number;
-  }>
-) {
-  const db = getDb();
-  return db
-    .update(posts)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(posts.id, postId))
-    .returning();
+  if (error) throw error;
+  return post;
 }
 
 export async function deletePost(postId: string) {
-  const db = getDb();
-  return db.delete(posts).where(eq(posts.id, postId));
+  const sb = getSupabaseAdmin();
+  await sb.from("posts").delete().eq("id", postId);
 }
 
 export async function toggleLike(postId: string, userId: string) {
-  const db = getDb();
-  const existing = await db
-    .select()
-    .from(postLikes)
-    .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)))
-    .limit(1);
+  const sb = getSupabaseAdmin();
+  const { data: existing } = await sb
+    .from("post_likes")
+    .select("id")
+    .eq("post_id", postId)
+    .eq("user_id", userId)
+    .maybeSingle();
 
-  if (existing.length > 0) {
-    await db
-      .delete(postLikes)
-      .where(and(eq(postLikes.postId, postId), eq(postLikes.userId, userId)));
-    await db
-      .update(posts)
-      .set({ likeCount: sql`${posts.likeCount} - 1` })
-      .where(eq(posts.id, postId));
+  if (existing) {
+    await sb.from("post_likes").delete().eq("id", existing.id);
     return { liked: false };
   } else {
-    await db.insert(postLikes).values({ postId, userId });
-    await db
-      .update(posts)
-      .set({ likeCount: sql`${posts.likeCount} + 1` })
-      .where(eq(posts.id, postId));
+    await sb.from("post_likes").insert({ post_id: postId, user_id: userId });
     return { liked: true };
   }
 }
 
 export async function addComment(postId: string, userId: string, body: string) {
-  const db = getDb();
-  const result = await db
-    .insert(comments)
-    .values({ postId, userId, body })
-    .returning();
-
-  await db
-    .update(posts)
-    .set({ commentCount: sql`${posts.commentCount} + 1` })
-    .where(eq(posts.id, postId));
-
-  return result[0];
+  const sb = getSupabaseAdmin();
+  const { data, error } = await sb
+    .from("comments")
+    .insert({ post_id: postId, user_id: userId, body })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function hasPurchasedPpv(postId: string, fanId: string) {
-  const db = getDb();
-  const result = await db
-    .select()
-    .from(ppvPurchases)
-    .where(and(eq(ppvPurchases.postId, postId), eq(ppvPurchases.fanId, fanId)))
-    .limit(1);
-  return result.length > 0;
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("ppv_purchases")
+    .select("id")
+    .eq("post_id", postId)
+    .eq("fan_id", fanId)
+    .maybeSingle();
+  return !!data;
 }

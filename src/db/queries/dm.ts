@@ -1,67 +1,51 @@
 "use server";
 
-import { eq, and, desc, sql } from "drizzle-orm";
-import { getDb } from "@/db";
-import { dmConversations, directMessages, users } from "@/db/schema";
+import { getSupabaseAdmin } from "@/db";
 
 export async function getOrCreateConversation(fanId: string, creatorUserId: string) {
-  const db = getDb();
-  const existing = await db
+  const sb = getSupabaseAdmin();
+  const { data: existing } = await sb
+    .from("dm_conversations")
+    .select("*")
+    .eq("fan_id", fanId)
+    .eq("creator_id", creatorUserId)
+    .single();
+
+  if (existing) return existing;
+
+  const { data, error } = await sb
+    .from("dm_conversations")
+    .insert({ fan_id: fanId, creator_id: creatorUserId })
     .select()
-    .from(dmConversations)
-    .where(
-      and(
-        eq(dmConversations.fanId, fanId),
-        eq(dmConversations.creatorId, creatorUserId)
-      )
-    )
-    .limit(1);
-
-  if (existing.length > 0) return existing[0];
-
-  const result = await db
-    .insert(dmConversations)
-    .values({ fanId, creatorId: creatorUserId })
-    .returning();
-  return result[0];
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function getConversationMessages(conversationId: string, limit = 50) {
-  const db = getDb();
-  return db
-    .select({
-      id: directMessages.id,
-      senderId: directMessages.senderId,
-      body: directMessages.body,
-      mediaUrl: directMessages.mediaUrl,
-      price: directMessages.price,
-      isRead: directMessages.isRead,
-      createdAt: directMessages.createdAt,
-      senderName: users.displayName,
-      senderAvatar: users.avatarUrl,
-    })
-    .from(directMessages)
-    .innerJoin(users, eq(directMessages.senderId, users.id))
-    .where(eq(directMessages.conversationId, conversationId))
-    .orderBy(desc(directMessages.createdAt))
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("direct_messages")
+    .select("*, users!direct_messages_sender_id_fkey(display_name, avatar_url)")
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
     .limit(limit);
+
+  return (data ?? []).map((m: any) => ({
+    ...m,
+    senderName: m.users?.display_name,
+    senderAvatar: m.users?.avatar_url,
+  }));
 }
 
 export async function getUserConversations(userId: string) {
-  const db = getDb();
-  // ファンとしての会話 + クリエイターとしての会話
-  return db
-    .select({
-      id: dmConversations.id,
-      fanId: dmConversations.fanId,
-      creatorId: dmConversations.creatorId,
-      updatedAt: dmConversations.updatedAt,
-    })
-    .from(dmConversations)
-    .where(
-      sql`${dmConversations.fanId} = ${userId} OR ${dmConversations.creatorId} = ${userId}`
-    )
-    .orderBy(desc(dmConversations.updatedAt));
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("dm_conversations")
+    .select("*")
+    .or(`fan_id.eq.${userId},creator_id.eq.${userId}`)
+    .order("updated_at", { ascending: false });
+  return data ?? [];
 }
 
 export async function sendMessage(data: {
@@ -72,38 +56,36 @@ export async function sendMessage(data: {
   stripePaymentIntentId?: string;
   mediaUrl?: string;
 }) {
-  const db = getDb();
-  const result = await db
-    .insert(directMessages)
-    .values({
-      conversationId: data.conversationId,
-      senderId: data.senderId,
+  const sb = getSupabaseAdmin();
+  const { data: msg, error } = await sb
+    .from("direct_messages")
+    .insert({
+      conversation_id: data.conversationId,
+      sender_id: data.senderId,
       body: data.body,
       price: data.price ?? 0,
-      stripePaymentIntentId: data.stripePaymentIntentId,
-      mediaUrl: data.mediaUrl,
+      stripe_payment_intent_id: data.stripePaymentIntentId,
+      media_url: data.mediaUrl,
     })
-    .returning();
+    .select()
+    .single();
 
-  // 会話のupdatedAtを更新
-  await db
-    .update(dmConversations)
-    .set({ updatedAt: new Date() })
-    .where(eq(dmConversations.id, data.conversationId));
+  if (error) throw error;
 
-  return result[0];
+  await sb
+    .from("dm_conversations")
+    .update({ updated_at: new Date().toISOString() })
+    .eq("id", data.conversationId);
+
+  return msg;
 }
 
 export async function markMessagesAsRead(conversationId: string, userId: string) {
-  const db = getDb();
-  return db
-    .update(directMessages)
-    .set({ isRead: true })
-    .where(
-      and(
-        eq(directMessages.conversationId, conversationId),
-        sql`${directMessages.senderId} != ${userId}`,
-        eq(directMessages.isRead, false)
-      )
-    );
+  const sb = getSupabaseAdmin();
+  return sb
+    .from("direct_messages")
+    .update({ is_read: true })
+    .eq("conversation_id", conversationId)
+    .neq("sender_id", userId)
+    .eq("is_read", false);
 }

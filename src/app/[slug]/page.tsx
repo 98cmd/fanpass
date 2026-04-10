@@ -39,7 +39,7 @@ export default async function CreatorPage({
     activeSub = await getActiveSubscription(user.id, creator.id);
   }
 
-  const activeTiers = tiersList.filter((t) => t.isActive);
+  const activeTiers = tiersList.filter((t) => t.is_active);
 
   return (
     <div className="min-h-screen bg-background">
@@ -53,8 +53,8 @@ export default async function CreatorPage({
       </header>
 
       <div className="relative">
-        {creator.coverImageUrl ? (
-          <img src={creator.coverImageUrl} alt="" className="h-40 md:h-56 w-full object-cover" />
+        {creator.cover_image_url ? (
+          <img src={creator.cover_image_url} alt="" className="h-40 md:h-56 w-full object-cover" />
         ) : (
           <div className="h-40 md:h-56 bg-gradient-to-br from-primary/20 to-secondary/10" />
         )}
@@ -84,16 +84,16 @@ export default async function CreatorPage({
         )}
 
         <div className="flex items-center gap-4 mb-8">
-          {creator.snsInstagram && (
-            <a href={`https://instagram.com/${creator.snsInstagram}`} target="_blank" rel="noopener noreferrer"
+          {creator.sns_instagram && (
+            <a href={`https://instagram.com/${creator.sns_instagram}`} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors">
-              <Globe className="w-4 h-4" />@{creator.snsInstagram}
+              <Globe className="w-4 h-4" />@{creator.sns_instagram}
             </a>
           )}
-          {creator.snsX && (
-            <a href={`https://x.com/${creator.snsX}`} target="_blank" rel="noopener noreferrer"
+          {creator.sns_x && (
+            <a href={`https://x.com/${creator.sns_x}`} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition-colors">
-              <Link2 className="w-4 h-4" />@{creator.snsX}
+              <Link2 className="w-4 h-4" />@{creator.sns_x}
             </a>
           )}
         </div>
@@ -109,14 +109,14 @@ export default async function CreatorPage({
                   price={tier.price}
                   benefits={(tier.benefits as string[]) ?? []}
                   variant={tierVariant(i)}
-                  isSubscribed={activeSub?.tierId === tier.id}
+                  isSubscribed={activeSub?.tier_id === tier.id}
                 />
               ))}
             </div>
           </section>
         )}
 
-        {creator.dmPrice && (
+        {creator.dm_price && (
           <section className="mb-10 p-5 rounded-xl border border-border bg-surface">
             <div className="flex items-center justify-between">
               <div>
@@ -124,7 +124,7 @@ export default async function CreatorPage({
                   <MessageCircle className="w-5 h-5 text-primary" />
                   メッセージを送る
                 </h2>
-                <p className="text-sm text-text-muted mt-1">1通 {creator.dmPrice.toLocaleString()}円で直接メッセージを送れます</p>
+                <p className="text-sm text-text-muted mt-1">1通 {creator.dm_price.toLocaleString()}円で直接メッセージを送れます</p>
               </div>
               <Button asChild>
                 <Link href={user ? `/dm?to=${creator.slug}` : "/login"}>DMを送る</Link>
@@ -148,13 +148,13 @@ export default async function CreatorPage({
                     body={post.body ?? undefined}
                     mediaUrls={(post.mediaUrls as string[]) ?? []}
                     type={post.type}
-                    likeCount={post.likeCount}
-                    commentCount={post.commentCount}
-                    publishedAt={post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("ja-JP") : ""}
+                    likeCount={post.like_count}
+                    commentCount={post.comment_count}
+                    publishedAt={post.published_at ? new Date(post.published_at).toLocaleDateString("ja-JP") : ""}
                     isLocked={isLocked}
                     requiredTier={isLocked ? "サブスク" : undefined}
-                    isPpv={post.isPpv}
-                    ppvPrice={post.ppvPrice ?? undefined}
+                    isPpv={post.is_ppv}
+                    ppvPrice={post.ppv_price ?? undefined}
                   />
                 );
               })}

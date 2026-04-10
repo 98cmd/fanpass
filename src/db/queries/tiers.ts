@@ -1,8 +1,6 @@
 "use server";
 
-import { eq, and } from "drizzle-orm";
-import { getDb } from "@/db";
-import { tiers } from "@/db/schema";
+import { getSupabaseAdmin } from "@/db";
 
 export async function createTier(data: {
   creatorId: string;
@@ -12,45 +10,36 @@ export async function createTier(data: {
   benefits?: string[];
   sortOrder?: number;
 }) {
-  const db = getDb();
-  return db
-    .insert(tiers)
-    .values({
-      creatorId: data.creatorId,
+  const sb = getSupabaseAdmin();
+  const { data: tier, error } = await sb
+    .from("tiers")
+    .insert({
+      creator_id: data.creatorId,
       name: data.name,
       price: data.price,
       description: data.description,
       benefits: data.benefits ?? [],
-      sortOrder: data.sortOrder ?? 0,
+      sort_order: data.sortOrder ?? 0,
     })
-    .returning();
+    .select()
+    .single();
+  if (error) throw error;
+  return tier;
 }
 
-export async function updateTier(
-  tierId: string,
-  data: Partial<{
-    name: string;
-    price: number;
-    description: string;
-    benefits: string[];
-    sortOrder: number;
-    isActive: boolean;
-    stripePriceId: string;
-  }>
-) {
-  const db = getDb();
-  return db
-    .update(tiers)
-    .set({ ...data, updatedAt: new Date() })
-    .where(eq(tiers.id, tierId))
-    .returning();
+export async function updateTier(tierId: string, data: Record<string, unknown>) {
+  const sb = getSupabaseAdmin();
+  const { data: tier, error } = await sb
+    .from("tiers")
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq("id", tierId)
+    .select()
+    .single();
+  if (error) throw error;
+  return tier;
 }
 
 export async function deleteTier(tierId: string) {
-  const db = getDb();
-  // ソフトデリート
-  return db
-    .update(tiers)
-    .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(tiers.id, tierId));
+  const sb = getSupabaseAdmin();
+  await sb.from("tiers").update({ is_active: false }).eq("id", tierId);
 }

@@ -69,9 +69,9 @@ export default async function RevenuePage() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-medium text-success">
-                      +{tx.creatorRevenue.toLocaleString()}円
+                      +{tx.creator_revenue.toLocaleString()}円
                     </p>
-                    <p className="text-xs text-text-muted">{new Date(tx.createdAt).toLocaleDateString("ja-JP")}</p>
+                    <p className="text-xs text-text-muted">{new Date(tx.created_at).toLocaleDateString("ja-JP")}</p>
                   </div>
                 </div>
               ))}

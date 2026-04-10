@@ -1,83 +1,78 @@
 "use server";
 
-import { eq, and, count } from "drizzle-orm";
-import { getDb } from "@/db";
-import { subscriptions, tiers, creatorProfiles, users } from "@/db/schema";
+import { getSupabaseAdmin } from "@/db";
 
 export async function getActiveSubscription(fanId: string, creatorId: string) {
-  const db = getDb();
-  const result = await db
-    .select()
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.fanId, fanId),
-        eq(subscriptions.creatorId, creatorId),
-        eq(subscriptions.status, "active")
-      )
-    )
-    .limit(1);
-  return result[0] ?? null;
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("subscriptions")
+    .select("*")
+    .eq("fan_id", fanId)
+    .eq("creator_id", creatorId)
+    .eq("status", "active")
+    .single();
+  return data;
 }
 
 export async function getUserSubscriptions(fanId: string) {
-  const db = getDb();
-  return db
-    .select({
-      id: subscriptions.id,
-      tierId: subscriptions.tierId,
-      status: subscriptions.status,
-      currentPeriodEnd: subscriptions.currentPeriodEnd,
-      tierName: tiers.name,
-      tierPrice: tiers.price,
-      creatorSlug: creatorProfiles.slug,
-      creatorCategory: creatorProfiles.category,
-      creatorName: users.displayName,
-      creatorAvatar: users.avatarUrl,
-    })
-    .from(subscriptions)
-    .innerJoin(tiers, eq(subscriptions.tierId, tiers.id))
-    .innerJoin(creatorProfiles, eq(subscriptions.creatorId, creatorProfiles.id))
-    .innerJoin(users, eq(creatorProfiles.userId, users.id))
-    .where(eq(subscriptions.fanId, fanId));
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("subscriptions")
+    .select(`
+      *,
+      tiers(name, price),
+      creator_profiles!subscriptions_creator_id_fkey(slug, category, user_id,
+        users!creator_profiles_user_id_fkey(display_name, avatar_url)
+      )
+    `)
+    .eq("fan_id", fanId);
+
+  return (data ?? []).map((s: any) => ({
+    id: s.id,
+    tierId: s.tier_id,
+    status: s.status,
+    currentPeriodEnd: s.current_period_end,
+    tierName: s.tiers?.name,
+    tierPrice: s.tiers?.price,
+    creatorSlug: s.creator_profiles?.slug,
+    creatorCategory: s.creator_profiles?.category,
+    creatorName: s.creator_profiles?.users?.display_name,
+    creatorAvatar: s.creator_profiles?.users?.avatar_url,
+  })) as any[];
 }
 
 export async function getCreatorSubscribers(creatorId: string) {
-  const db = getDb();
-  return db
-    .select({
-      id: subscriptions.id,
-      fanId: subscriptions.fanId,
-      tierId: subscriptions.tierId,
-      status: subscriptions.status,
-      createdAt: subscriptions.createdAt,
-      tierName: tiers.name,
-      tierPrice: tiers.price,
-      fanName: users.displayName,
-      fanEmail: users.email,
-      fanAvatar: users.avatarUrl,
-    })
-    .from(subscriptions)
-    .innerJoin(tiers, eq(subscriptions.tierId, tiers.id))
-    .innerJoin(users, eq(subscriptions.fanId, users.id))
-    .where(
-      and(
-        eq(subscriptions.creatorId, creatorId),
-        eq(subscriptions.status, "active")
-      )
-    );
+  const sb = getSupabaseAdmin();
+  const { data } = await sb
+    .from("subscriptions")
+    .select(`
+      *,
+      tiers(name, price),
+      users!subscriptions_fan_id_fkey(display_name, email, avatar_url)
+    `)
+    .eq("creator_id", creatorId)
+    .eq("status", "active");
+
+  return (data ?? []).map((s: any) => ({
+    id: s.id,
+    fanId: s.fan_id,
+    tierId: s.tier_id,
+    status: s.status,
+    createdAt: s.created_at,
+    tierName: s.tiers?.name,
+    tierPrice: s.tiers?.price,
+    fanName: s.users?.display_name,
+    fanEmail: s.users?.email,
+    fanAvatar: s.users?.avatar_url,
+  })) as any[];
 }
 
 export async function getCreatorSubscriberCount(creatorId: string) {
-  const db = getDb();
-  const result = await db
-    .select({ count: count() })
-    .from(subscriptions)
-    .where(
-      and(
-        eq(subscriptions.creatorId, creatorId),
-        eq(subscriptions.status, "active")
-      )
-    );
-  return result[0]?.count ?? 0;
+  const sb = getSupabaseAdmin();
+  const { count } = await sb
+    .from("subscriptions")
+    .select("*", { count: "exact", head: true })
+    .eq("creator_id", creatorId)
+    .eq("status", "active");
+  return count ?? 0;
 }

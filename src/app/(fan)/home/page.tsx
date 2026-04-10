@@ -2,45 +2,28 @@ import Link from "next/link";
 import { PostCard } from "@/components/post/post-card";
 import { getUser } from "@/lib/auth/session";
 import { getUserSubscriptions } from "@/db/queries/subscriptions";
-import { getDb } from "@/db";
-import { posts, creatorProfiles, users } from "@/db/schema";
-import { desc, eq } from "drizzle-orm";
+import { getSupabaseAdmin } from "@/db";
 
 export default async function FanHomePage() {
   const user = await getUser();
-
-  // ログインしていない場合はLPにリダイレクト不要、空フィード表示
   let feedPosts: any[] = [];
 
   if (user) {
-    // サブスクしているクリエイターの投稿をフィード表示
     const subs = await getUserSubscriptions(user.id);
-    const creatorIds = subs.map((s) => s.id);
-
-    if (creatorIds.length > 0) {
-      const db = getDb();
-      feedPosts = await db
-        .select({
-          id: posts.id,
-          title: posts.title,
-          body: posts.body,
-          type: posts.type,
-          mediaUrls: posts.mediaUrls,
-          visibility: posts.visibility,
-          isPpv: posts.isPpv,
-          ppvPrice: posts.ppvPrice,
-          likeCount: posts.likeCount,
-          commentCount: posts.commentCount,
-          publishedAt: posts.publishedAt,
-          creatorSlug: creatorProfiles.slug,
-          creatorName: users.displayName,
-          creatorAvatar: users.avatarUrl,
-        })
-        .from(posts)
-        .innerJoin(creatorProfiles, eq(posts.creatorId, creatorProfiles.id))
-        .innerJoin(users, eq(creatorProfiles.userId, users.id))
-        .orderBy(desc(posts.publishedAt))
+    if (subs.length > 0) {
+      const sb = getSupabaseAdmin();
+      const { data } = await sb
+        .from("posts")
+        .select("*, creator_profiles!posts_creator_id_fkey(slug, user_id, users!creator_profiles_user_id_fkey(display_name, avatar_url))")
+        .order("published_at", { ascending: false })
         .limit(20);
+
+      feedPosts = (data ?? []).map((p: any) => ({
+        ...p,
+        creatorSlug: p.creator_profiles?.slug,
+        creatorName: p.creator_profiles?.users?.display_name,
+        creatorAvatar: p.creator_profiles?.users?.avatar_url,
+      }));
     }
   }
 
@@ -54,14 +37,12 @@ export default async function FanHomePage() {
             {user ? "サブスクしているクリエイターの投稿がここに表示されます" : "ログインしてフィードを見ましょう"}
           </p>
           {!user && (
-            <Link href="/login" className="text-primary font-medium hover:underline">
-              ログイン
-            </Link>
+            <Link href="/login" className="text-primary font-medium hover:underline">ログイン</Link>
           )}
         </div>
       ) : (
         <div className="space-y-4">
-          {feedPosts.map((post) => (
+          {feedPosts.map((post: any) => (
             <div key={post.id}>
               <Link href={`/${post.creatorSlug}`} className="flex items-center gap-3 mb-2 group">
                 <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
@@ -74,11 +55,11 @@ export default async function FanHomePage() {
               <PostCard
                 title={post.title ?? undefined}
                 body={post.body ?? undefined}
-                mediaUrls={(post.mediaUrls as string[]) ?? []}
+                mediaUrls={post.media_urls ?? []}
                 type={post.type}
-                likeCount={post.likeCount}
-                commentCount={post.commentCount}
-                publishedAt={post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("ja-JP") : ""}
+                likeCount={post.like_count}
+                commentCount={post.comment_count}
+                publishedAt={post.published_at ? new Date(post.published_at).toLocaleDateString("ja-JP") : ""}
                 isLocked={false}
               />
             </div>

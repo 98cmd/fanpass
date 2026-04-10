@@ -1,13 +1,15 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import * as schema from "./schema";
+import { createClient } from "@supabase/supabase-js";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+// Supabase service_role client でDB操作（RLSバイパス）
+// 型生成なしで使うため any キャスト
+let _client: any = null;
 
-export function getDb() {
-  if (!_db) {
-    const client = postgres(process.env.DATABASE_URL!, { prepare: false });
-    _db = drizzle(client, { schema });
+export function getSupabaseAdmin(): any {
+  if (!_client) {
+    _client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
   }
-  return _db;
+  return _client;
 }

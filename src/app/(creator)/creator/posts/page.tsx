@@ -35,7 +35,7 @@ export default async function PostsPage() {
       ) : (
         <div className="space-y-3">
           {postsList.map((post) => {
-            const Icon = typeIcons[post.type];
+            const Icon = typeIcons[post.type as keyof typeof typeIcons] ?? FileText;
             return (
               <Card key={post.id} className="hover:border-primary/20 transition-colors">
                 <CardContent className="p-4 flex items-center gap-4">
@@ -46,15 +46,15 @@ export default async function PostsPage() {
                     <p className="font-medium text-text-primary truncate">{post.title || "無題"}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline">{visibilityLabel[post.visibility] ?? post.visibility}</Badge>
-                      {post.isPpv && <Badge variant="secondary">{post.ppvPrice}円</Badge>}
+                      {post.is_ppv && <Badge variant="secondary">{post.ppv_price}円</Badge>}
                       <span className="text-xs text-text-muted">
-                        {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString("ja-JP") : "下書き"}
+                        {post.published_at ? new Date(post.published_at).toLocaleDateString("ja-JP") : "下書き"}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-text-muted shrink-0">
-                    <span>{post.likeCount} likes</span>
-                    <span>{post.commentCount} comments</span>
+                    <span>{post.like_count} likes</span>
+                    <span>{post.comment_count} comments</span>
                   </div>
                 </CardContent>
               </Card>

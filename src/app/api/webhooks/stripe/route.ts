@@ -1,9 +1,7 @@
 import { NextRequest } from "next/server";
 import { constructEvent } from "@/lib/stripe/webhooks";
 import { calculatePlatformFee } from "@/lib/stripe/client";
-import { getDb } from "@/db";
-import { subscriptions, transactions } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { getSupabaseAdmin } from "@/db";
 
 const processedEvents = new Set<string>();
 
@@ -27,7 +25,7 @@ export async function POST(request: NextRequest) {
       if (first) processedEvents.delete(first);
     }
 
-    const db = getDb();
+    const sb = getSupabaseAdmin();
 
     switch (event.type) {
       case "checkout.session.completed": {
@@ -35,23 +33,15 @@ export async function POST(request: NextRequest) {
         if (session.mode === "subscription" && session.metadata) {
           const { fanpass_fan_id, fanpass_creator_id, fanpass_tier_id } = session.metadata;
           if (fanpass_fan_id && fanpass_creator_id && fanpass_tier_id) {
-            await db.insert(subscriptions).values({
-              fanId: fanpass_fan_id,
-              creatorId: fanpass_creator_id,
-              tierId: fanpass_tier_id,
-              stripeSubscriptionId: session.subscription,
+            await sb.from("subscriptions").upsert({
+              fan_id: fanpass_fan_id,
+              creator_id: fanpass_creator_id,
+              tier_id: fanpass_tier_id,
+              stripe_subscription_id: session.subscription,
               status: "active",
-              currentPeriodStart: new Date(),
-              currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-            }).onConflictDoUpdate({
-              target: [subscriptions.fanId, subscriptions.creatorId],
-              set: {
-                tierId: fanpass_tier_id,
-                stripeSubscriptionId: session.subscription,
-                status: "active",
-                updatedAt: new Date(),
-              },
-            });
+              current_period_start: new Date().toISOString(),
+              current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            }, { onConflict: "fan_id,creator_id" });
           }
         }
         break;
@@ -63,23 +53,16 @@ export async function POST(request: NextRequest) {
           const meta = invoice.subscription_details.metadata;
           const amount = invoice.amount_paid;
           const fee = calculatePlatformFee(amount);
-
-          // トランザクション記録（冪等性: stripe_idのUNIQUE制約）
-          try {
-            await db.insert(transactions).values({
-              creatorId: meta.fanpass_creator_id,
-              fanId: meta.fanpass_fan_id,
-              type: "subscription",
-              amount,
-              platformFee: fee,
-              creatorRevenue: amount - fee,
-              stripeId: invoice.id,
-              status: "completed",
-            });
-          } catch (e: any) {
-            // UNIQUE制約違反 = 既に処理済み
-            if (e?.code !== "23505") throw e;
-          }
+          await sb.from("transactions").upsert({
+            creator_id: meta.fanpass_creator_id,
+            fan_id: meta.fanpass_fan_id,
+            type: "subscription",
+            amount,
+            platform_fee: fee,
+            creator_revenue: amount - fee,
+            stripe_id: invoice.id,
+            status: "completed",
+          }, { onConflict: "stripe_id", ignoreDuplicates: true });
         }
         break;
       }
@@ -87,43 +70,28 @@ export async function POST(request: NextRequest) {
       case "invoice.payment_failed": {
         const invoice = event.data.object as any;
         if (invoice.subscription) {
-          await db
-            .update(subscriptions)
-            .set({ status: "past_due", updatedAt: new Date() })
-            .where(eq(subscriptions.stripeSubscriptionId, invoice.subscription));
+          await sb.from("subscriptions")
+            .update({ status: "past_due", updated_at: new Date().toISOString() })
+            .eq("stripe_subscription_id", invoice.subscription);
         }
         break;
       }
 
       case "customer.subscription.deleted": {
         const sub = event.data.object as any;
-        await db
-          .update(subscriptions)
-          .set({
-            status: "canceled",
-            canceledAt: new Date(),
-            updatedAt: new Date(),
-          })
-          .where(eq(subscriptions.stripeSubscriptionId, sub.id));
+        await sb.from("subscriptions")
+          .update({ status: "canceled", canceled_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("stripe_subscription_id", sub.id);
         break;
       }
 
       case "customer.subscription.updated": {
         const sub = event.data.object as any;
-        const updates: any = { updatedAt: new Date() };
-        if (sub.current_period_start) {
-          updates.currentPeriodStart = new Date(sub.current_period_start * 1000);
-        }
-        if (sub.current_period_end) {
-          updates.currentPeriodEnd = new Date(sub.current_period_end * 1000);
-        }
-        if (sub.status === "active" || sub.status === "past_due") {
-          updates.status = sub.status;
-        }
-        await db
-          .update(subscriptions)
-          .set(updates)
-          .where(eq(subscriptions.stripeSubscriptionId, sub.id));
+        const updates: any = { updated_at: new Date().toISOString() };
+        if (sub.current_period_start) updates.current_period_start = new Date(sub.current_period_start * 1000).toISOString();
+        if (sub.current_period_end) updates.current_period_end = new Date(sub.current_period_end * 1000).toISOString();
+        if (sub.status === "active" || sub.status === "past_due") updates.status = sub.status;
+        await sb.from("subscriptions").update(updates).eq("stripe_subscription_id", sub.id);
         break;
       }
 
@@ -133,34 +101,24 @@ export async function POST(request: NextRequest) {
         if (meta?.fanpass_type === "ppv" || meta?.fanpass_type === "dm") {
           const amount = pi.amount;
           const fee = calculatePlatformFee(amount);
-          try {
-            await db.insert(transactions).values({
-              creatorId: meta.fanpass_creator_id,
-              fanId: meta.fanpass_fan_id,
-              type: meta.fanpass_type,
-              amount,
-              platformFee: fee,
-              creatorRevenue: amount - fee,
-              stripeId: pi.id,
-              status: "completed",
-            });
-          } catch (e: any) {
-            if (e?.code !== "23505") throw e;
-          }
+          await sb.from("transactions").upsert({
+            creator_id: meta.fanpass_creator_id,
+            fan_id: meta.fanpass_fan_id,
+            type: meta.fanpass_type,
+            amount,
+            platform_fee: fee,
+            creator_revenue: amount - fee,
+            stripe_id: pi.id,
+            status: "completed",
+          }, { onConflict: "stripe_id", ignoreDuplicates: true });
 
-          // PPVの場合、購入記録を作成
           if (meta.fanpass_type === "ppv" && meta.fanpass_post_id) {
-            const { ppvPurchases } = await import("@/db/schema");
-            try {
-              await db.insert(ppvPurchases).values({
-                postId: meta.fanpass_post_id,
-                fanId: meta.fanpass_fan_id,
-                price: amount,
-                stripePaymentIntentId: pi.id,
-              });
-            } catch (e: any) {
-              if (e?.code !== "23505") throw e;
-            }
+            await sb.from("ppv_purchases").upsert({
+              post_id: meta.fanpass_post_id,
+              fan_id: meta.fanpass_fan_id,
+              price: amount,
+              stripe_payment_intent_id: pi.id,
+            }, { ignoreDuplicates: true });
           }
         }
         break;
