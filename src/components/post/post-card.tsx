@@ -1,6 +1,5 @@
 import Image from "next/image";
 import { Heart, MessageCircle, Lock } from "lucide-react";
-import { cn } from "@/lib/utils/cn";
 import { Button } from "@/components/ui/button";
 
 interface PostCardProps {

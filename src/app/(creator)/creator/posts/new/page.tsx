@@ -33,9 +33,13 @@ export default function NewPostPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    // TODO: API呼び出し
-    await new Promise((r) => setTimeout(r, 1000));
-    router.push("/creator/posts");
+    try {
+      // TODO: API呼び出し
+      await new Promise((r) => setTimeout(r, 1000));
+      router.push("/creator/posts");
+    } catch {
+      setLoading(false);
+    }
   }
 
   return (

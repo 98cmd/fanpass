@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") || "/home";
+  const rawRedirect = searchParams.get("redirect") || "/home";
+  // オープンリダイレクト防止: 相対パスのみ許可
+  const redirect = rawRedirect.startsWith("/") && !rawRedirect.startsWith("//") ? rawRedirect : "/home";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
