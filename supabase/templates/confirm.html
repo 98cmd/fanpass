@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;background-color:#FAFAF9;font-family:'Helvetica Neue',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:40px auto;background:#FFFFFF;border-radius:12px;border:1px solid #E7E5E4;">
+    <tr>
+      <td style="padding:32px 32px 24px;text-align:center;">
+        <h1 style="margin:0;font-size:24px;font-weight:800;color:#6D28D9;">FANPASS</h1>
+        <p style="margin:4px 0 0;font-size:13px;color:#A8A29E;">推しの世界への入場券</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:0 32px 32px;">
+        <h2 style="margin:0 0 12px;font-size:18px;font-weight:700;color:#1C1917;">メールアドレスを確認してください</h2>
+        <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#57534E;">
+          FANPASSへのご登録ありがとうございます。<br>
+          下のボタンをクリックして、アカウントを有効化してください。
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td align="center">
+              <a href="{{ .ConfirmationURL }}"
+                 style="display:inline-block;padding:12px 32px;background-color:#6D28D9;color:#FFFFFF;font-size:14px;font-weight:600;text-decoration:none;border-radius:8px;">
+                アカウントを確認する
+              </a>
+            </td>
+          </tr>
+        </table>
+        <p style="margin:24px 0 0;font-size:12px;color:#A8A29E;text-align:center;">
+          このメールに心当たりがない場合は無視してください。
+        </p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding:16px 32px;border-top:1px solid #E7E5E4;text-align:center;">
+        <p style="margin:0;font-size:11px;color:#A8A29E;">FANPASS - fanpass-app.vercel.app</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
